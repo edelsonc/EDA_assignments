@@ -1,0 +1,42 @@
+---
+title: "Assignment_1"
+author: "edelsonc"
+date: "August 23, 2016"
+output: pdf_document
+---
+
+# Introduction
+This R-markdown document will serve as assignment 1. In it I will first make use of the R-markdown language to write a PDF. Then I will import a csv and a json into RStudio.
+
+# Data Aquisition
+All data used was aquired from data.gov. Specifically, the data set *Somerville Police Officer Crash Report 2010-August 2015* was used.
+
+### Reading the CSV
+First, the data was read as a csv file from the following
+```{r eval=FALSE}
+csv_url <- "https://data.somervillema.gov/api/views/jdcq-3gza/rows.csv?accessType=DOWNLOAD"
+```
+This is then easily read into memory with the download command
+
+```{r eval=FALSE}
+download.file(csv_url, "~/MyDir/Crash.csv")
+```
+where ```MyDir``` can be anypath of choice.
+
+### Reading from JSON
+Reading from a JSON isn't particulary more difficult. However, it does require a new R library. There are three to choose from: ```rjson```, ```rjsonlite```, or ```RJSONIO```. For our purposes, we will use ```jsonlite```.
+
+First the rjsonlite library must be loaded
+```{r eval=FALSE}
+library("jsonlite")
+```
+
+Then we specify the url to download the JSON from
+```{r eval=FALSE}
+json_url <- "https://data.somervillema.gov/api/views/jdcq-3gza/rows.json?accessType=DOWNLOAD"
+```
+
+At this point we use the 'fromJSON' to conviniently read the file into RStudio
+```{r eval=FALSE}
+JSONData <- fromJSON(json_url)
+```
