@@ -1,0 +1,1 @@
+Downloaded from https://archive.ics.uci.edu/ml/machine-learning-databases/00336/Chronic_Kidney_Disease.rar at Sun Sep 11 13:50:14 EDT 2016

@@ -1,0 +1,112 @@
+---
+title: "Assignment 6"
+author: "edelsonc"
+date: "September 11, 2016"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd("/Users/edelsonc/Desktop/Data_Science/EDA/assignment_6")
+```
+This assignment will investigate descritizing data in R. This will be done using a data set looking as Chronic Kidney Disease, provided from the University of California Irvine.
+
+First the data is downloaded and extracted using bash.
+```{r, engine= "bash", eval=FALSE}
+# file url
+url="https://archive.ics.uci.edu/ml/machine-learning-databases/00336/Chronic_Kidney_Disease.rar"
+
+# use wget command to download the file
+wget "$url"
+
+# extract the file's content
+unrar e Chronic_Kidney_Disease.rar
+
+# record the data providence
+echo "Downloaded from $url at $( date )" > KidneyProvidence.txt
+```
+
+Now lets investigate the extracted files
+
+```{r, engine="bash"}
+# list content of current directory, looking for items with chronic in
+# their name
+ls | grep chronic
+```
+
+The data files have been extracted. However, they are in an unusual format, a `.arff` document. In order to read this exotic file into memory, we'll need to use a special package, `RWeka`
+
+```{r}
+# load RWeka library
+library(RWeka)
+
+# use arff reading function to load data into memory
+kidney <- read.arff("chronic_kidney_disease_full.arff")
+str(kidney)
+```
+
+
+## Completeness of data
+
+We can investigate how many rows are complete using the `complete.cases` command
+
+```{r}
+sum(complete.cases(kidney))/nrow(kidney) * 100
+```
+
+So `r sum(complete.cases(kidney))/nrow(kidney) * 100`% or the rows contain an entry for every column.
+
+We wish to investigate the potassium column, and inorder to do this we'll eliminate rows where there is an `NA` for potassium
+
+```{r}
+kidney<- kidney[!(is.na(kidney$pot)),]
+```
+
+## Descritizing the Data
+
+There are a number of different schreme for descritizing data. A common one is to simply break the data into n many chunks, each with the same number of points in it
+
+```{r}
+bin_loc <- quantile(kidney$pot, probs= seq(0,1, by=0.2))
+
+kidney$dis_fix_freq <- with(kidney, cut(pot, breaks=bin_loc, include.lowest=TRUE, right=FALSE))
+
+summary(kidney$dis_fix_freq)
+```
+
+An alternate scheme for descretizing is to divide the range into equal parts
+
+```{r}
+MIN <- range(kidney$pot)[1]
+MAX <- range(kidney$pot)[2]
+
+bin_loc <- seq(MIN, MAX, (MAX - MIN)/5)
+
+kidney$dis_width <- with(kidney, cut(pot, breaks=bin_loc, include.lowest=TRUE, right=FALSE))
+
+summary(kidney$dis_width)
+```
+
+We can see that for this example, this is not the best discretization.
+
+An alternate regime is to use a topdown discretization process. The `R` package `discretization` lets you do that using the function `disc.Topdown` with anyone of three algorithims: CAIM, CACC, Ameva.
+
+```{r, warning=FALSE}
+library("discretization")
+
+kidney_comp <- kidney[complete.cases(kidney),]
+
+top_down <- disc.Topdown(kidney_comp[c(13,14)], method=1)
+
+kidney_comp$top_down <- factor(top_down$Disc.data[[c(2)]])
+
+summary(kidney_comp$top_down)
+```
+
+Alternatively, a bottom up approach can be used
+```{r, warning=FALSE}
+bottom_up <- chiM(kidney_comp[c(13, 14)])
+
+kidney_comp$bottom_up <- factor(bottom_up$Disc.data[[c(2)]])
+
+summary(kidney_comp$bottom_up)
