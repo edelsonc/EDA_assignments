@@ -1,0 +1,47 @@
+---
+title: "Assignment 5"
+author: "edelsonc"
+date: "September 8, 2016"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This assignment will look at the aggregate function. We will look at this while investigating the difference between the salaries of female and male professor at an unnamed university. First the file is downloaded from the web.
+
+```{r eval=FALSE}
+download.file("https://vincentarelbundock.github.io/Rdatasets/csv/car/Salaries.csv",
+                "/Users/edelsonc/Desktop/Data_Science/EDA/assignment_5/Salaries.csv")
+```
+
+Then it is read into memory using `read.csv`
+```{r}
+f_path <- "/Users/edelsonc/Desktop/Data_Science/EDA/assignment_5/Salaries.csv"
+
+Salaries <- read.csv(f_path, header=TRUE)
+
+str(Salaries)
+```
+
+## Dependence of Salary on Other Variables
+
+We can begin to investigate the effects of rank on salary using the `aggragate` function in R. Aggragating data is the simplist form of analysis, and using it we can look at how differenct groups of sex and rank recieve different salaries
+
+```{r}
+aggregate(salary ~ rank + sex, Salaries, summary)
+```
+
+
+However, we are not limited to just rank and sex. We can also look at how age and rank affect salary
+
+```{r}
+aggregate(salary ~ yrs.service + rank, Salaries, summary)
+```
+
+Finally, it is equally as simple to look at how salary may depend on sex and discipline
+
+```{r}
+aggregate(salary ~ sex + discipline, Salaries, summary)
+```
