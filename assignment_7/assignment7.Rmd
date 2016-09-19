@@ -1,0 +1,108 @@
+---
+title: "Assignment 7"
+author: "edelsonc"
+date: "September 19, 2016"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd("/Users/edelsonc/Desktop/Data_Science/EDA/assignment_7")
+```
+
+This assignment will look at the same data set as assignment 6. However, in the arff file from assignment 6 will be converted into a csv. Following this, the quality of the data will be assessed, with emphasis on the subset of blood pressure, blood urea, creatinine and potassium.
+
+# Converting arff to csv
+
+Arff files have a fairly rigid format. Because of this, small error in the formatting can create large problems when attempting to import data. So although arff can be viewed as more "sophisticated", they are not quite as robust as a csv. Therefore, often times it is easier to first convert the arff to a csv.
+
+In order to do this, a small bash executable was created, aptly named `arff_to_csv`. The code is below:
+```{r, engine='bash', eval=FALSE}
+#!/usr/local/bin/bash
+# the above shebang should be the one appropriate for your bash
+#created: 09/13/2016
+# this script will transform an arff file ($1) into a csv file ($2)
+
+# this finds the match for attributes and writes the header for the csv
+header=$( grep "@attribute" "$1" | awk '{print $2","}' | sed "s/['\"]//g" | sed '$s/,$//' )
+echo $header > "$2"
+
+# since the @data tag marks the beginning of the data block, it can be used
+# to copy over the data, which is all the lines after it.
+line=$( grep -n '@data' "$1" | cut -d':' -f1 )
+total_lines=$( wc -l "$1" | awk '{ print $1 }' )
+want_line=$(( total_lines - line ))
+
+# use tail to look at the end file numbers and append to our new csv
+# these results are piped to sed, where lines beginning with % are deleted
+cat "$1" | tail -"$want_line" | sed '/^%/d' | sed 's/\(%.*$\)//' >> "$2"
+```
+
+The above script initially looks at each line of the input arff (`$1`) and selects those containing `@attribute`, and then prints the second field from then with `awk`, added a comma to the end of each entry. `sed` then goes through these lines, removing single or double quotes. Finally, the comma at the end of the last entry is removed before the `header` is written to the csv file ($2).
+
+`grep` is once again employed to find the line where `@data` occurs. All of the data follows after this tag, and spans to the end of the document. So the lines that need to be copied are selected by finding the number of lines which remain after the `@data` tag, and then selecting those using `tail`. Finally, `sed` is used to remove comments and the data is appended to the csv.
+
+The above script can then be used to convert to a csv as follows
+```{r, engine='bash', eval=FALSE}
+# make the script executable
+chmod 755 arff_to_csv
+
+# convert using the new executable
+./arff_to_csv chronic_kidney_disease_full.arff ckdf.csv
+```
+
+# Reading the csv and Creating a Datafram
+
+This part is fairly simple, and has been covered in previous assignments
+```{r}
+# create dataframe by reading in csv
+kidney_all <- read.csv("ckdf.csv")
+str(kidney_all)
+
+# subset for blood pressure, blood urea, creatinine, and potassium
+sub_kidney <- kidney_all[c(2,11,13,14)]
+str(sub_kidney)
+```
+
+# Assessing Quality
+
+Since the data is numeric, first we'll look find the number of missing values, which are denoted with a `?`.
+
+```{r}
+# replace the ? with NA
+sub_kidney[sub_kidney == "?"] <- NA
+
+# count instances of NA
+number_missing <- sum(is.na(sub_kidney))
+number_missing
+```
+
+So there are `r number_missing` missing values in our data. This means that `r round(number_missing/( dim(sub_kidney)[1] * dim(sub_kidney)[2]) * 100, 2)`% of the data is missing. Furthermore, there are `r sum(complete.cases(sub_kidney))` complete rows, `r round( sum(complete.cases(sub_kidney))/nrow(sub_kidney) * 100)`% of the total.
+
+Currently all four columns are factors. In order to gauge the believability of the remaining data, it would help to coerce them into numeric types and look at some summary statistics.
+
+```{r}
+# use the apply function to turn each column of the dataframe into numeric type
+sub_kidney <- data.frame(apply(sub_kidney, 2, as.numeric))
+summary(sub_kidney)
+```
+
+Now we can see that potassium and creatinine have more `NA`s than blood pressure of blood urea. Additionally, the range for blood pressure is realistic. However, the other columns seem odd. For instantce, a hight of 47 for potassium, where all the other values are tightly clustered around 4, seems odd, especially since there is only one other value that high. This might suggest an outlier, or a missing decimal place between the 4 and the 7.
+
+For creatinine, the values are all very close except the min of 4.5. We can easily check to see if there are other value below 100
+
+```{r}
+sod_vec <- sub_kidney$sod[complete.cases(sub_kidney$sod)]
+sod_vec[sod_vec < 100]
+```
+
+So there is only one value less than 100, and that is our minimum of 4.5. Doing the same for blood urea, with a cut off of 15 and an upper cut off of 80, we find
+```{r}
+bu_vec <- sub_kidney$bu[complete.cases(sub_kidney$bu)]
+sort(bu_vec[bu_vec <= 15])
+sort(bu_vec[bu_vec > 200])
+```
+
+Showing that both the minimum and the maximim are extreme values conpared to the rest of the range, with the minimum more so. However, as compared with potassium, its far more believable that there values are outliers rather than insert problems.
+
+In summary, the overal quality of the data is mixed. With a fair number of missing fields and a number of suspect entries, it is hard to trust this data completely. However, overall it appears to be intact, and with only 3 or 4 suspect values out of `r nrow(sub_kidney) * ncol(sub_kidney) `, it is probably good enough to use for most basic analyses.
