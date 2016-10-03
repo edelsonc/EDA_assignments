@@ -1,0 +1,2 @@
+Downloaded from https://prod.flbog.net:4445/pls/apex/f?p=140:1:0::::: at Sun Oct  2 16:37:07 EDT 2016
+census-dist-female-first.txt downloaded from http://deron.meranda.us/data/census-dist-female-first.txt at Sun Oct  2 22:31:17 EDT 2016 

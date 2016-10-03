@@ -1,0 +1,96 @@
+---
+title: "Assignment 8"
+author: "edelsonc"
+date: "10/2/2016"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd("/Users/edelsonc/Desktop/Data_Science/EDA/assignment_8")
+```
+Florida publishes the salaries of all state employees, as well as csv files containing the same information. We will use this imformation to learn about the people who work for the Florida State School System.
+
+## Importing the Data
+
+Data for employees of the Florida State University System was downloaded from https://prod.flbog.net:4445/pls/apex/f?p=140:1:0::::: and saved locally as a single csv. This file was then read into memory
+```{r}
+# reading the FLorida University System (FUS) data into R
+FUS <- read.csv("emp.csv")
+str(FUS)
+```
+
+As seen, it is already a dataframe, and primarily contains factor data.
+
+## Number of Employees
+Since each row constitues a single employee, we can get a first glance at how many employees there are just by looking at the number of rows in our data frame
+```{r}
+nrow(FUS)
+```
+
+So at most `r nrow(FUS)` people. However, this doesn't account for the fact that some people may work multiple jobs in the Florida State. University System. This can be fixed by instead counting the number of unique names (assuming nobody is adobting multiple names between jobs)
+```{r}
+length(unique(paste(FUS$Last.Name, FUS$First.Name)))
+```
+
+This gives us a total of `r length(unique(paste(FUS$Last.Name, FUS$First.Name)))` employees. There is also a problem with this method, in that it counts people with the same name as the same person. So this number may underestimate the total number of state university system employees. So it is probably safe to assume the real number of employees lies in the range `r length(unique(paste(FUS$Last.Name, FUS$First.Name)))` - `r nrow(FUS)`.
+
+## Number of Professors
+We can easily find the number of full professors by simply checking if a rows class title is 'Professor'
+```{r}
+sum(FUS$Class.Title == "PROFESSOR")
+```
+
+Alternativly, we could have checked who had a class code of 9001
+```{r}
+sum(FUS$Class.Code == 9001)
+```
+
+Surprisingly, there is are two rows that are different for the two searches. We can easily find these by combining the previous two expressions
+```{r}
+not_prof <- FUS$Class.Title != "PROFESSOR" & FUS$Class.Code == 9001
+FUS[not_prof,c(1,4,5,9,10)]
+```
+
+Here it appears that either one of the two pieces of information were entered incorrectly, and the the row, unfortunatly, got duplicated.
+
+## Median Salary 
+
+There are a number of options for getting this infomration. The simplest is to subset based on our earlier logic and use the `summary` function for the five number summary
+```{r}
+prof <- FUS$Class.Title == "PROFESSOR"
+summary(FUS[prof, 11])
+```
+
+showing that the median salary is 80500 (with some poor guy getting paid pennies because someone mistyped).
+
+## Number of Female Professors
+Since there is no sex catagory, in order to figure out how many female professors there are in the Florida university system, we will have to judge off of names. Luckily, there are list of common english female names readily available off the internet
+```{r, engine='bash', eval=FALSE}
+# download html table with names
+wget http://deron.meranda.us/data/census-dist-female-first.txt
+awk '{print $1}' census-dist-female-first.txt > names_female.csv
+
+```
+
+This created a new file that was a single column of female names
+```{r, engine='bash'}
+head names_female.csv
+```
+
+Now all we have to do is merge our data based on this `names_female.csv` on the `First.Name` column (an inner join) and we'll have a dataframe of female professors
+
+```{r}
+# create names dataframe
+fnames <- read.csv("names_female.csv", header=FALSE)
+
+# merge without sort on first names
+female_prof <- merge(FUS[prof,], fnames, by.x = "First.Name",
+                     by.y = "V1", sort = FALSE)
+
+# view structure of new dataframe
+str(female_prof)
+
+# count number of rows (number of female professors)
+nrow(female_prof)
+```
