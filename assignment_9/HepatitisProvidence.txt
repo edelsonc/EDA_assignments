@@ -1,0 +1,2 @@
+hepatitis.data downloaded from https://archive.ics.uci.edu/ml/machine-learning-databases/hepatitis/hepatitis.data at Mon Oct  3 12:42:21 EDT 2016
+hepatitis.names downloaded from https://archive.ics.uci.edu/ml/machine-learning-databases/hepatitis/hepatitis.names at Mon Oct  3 12:43:01 EDT 2016 

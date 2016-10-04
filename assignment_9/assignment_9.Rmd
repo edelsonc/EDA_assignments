@@ -1,0 +1,168 @@
+---
+title: "Assignment 9"
+author: "edelsonc"
+date: "10/3/2016"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd("/Users/edelsonc/Desktop/Data_Science/EDA/assignment_9")
+```
+
+This exercise will combine the skill learned throughout the previous 6 weeks in order to look at the overall quality and structure of a hepatitis data set obtained from the UCI Machine Learning Repository (https://archive.ics.uci.edu/ml/datasets/Hepatitis)
+
+## Downloading and  Reading Into R
+The data is downloaded off of the web with the `bash`'s `wget` command and saved locally. Both the data set (saved as `hepatitis.data`) and the annotations (`hepatitis.names`) were saved locally.
+
+`hepatitis.data` is a csv, and so can be quickly read into R using the `read.csv` utility
+```{r}
+# No header on the data, so header set to false
+df_hep <- read.csv("hepatitis.data", header=FALSE)
+str(df_hep)
+```
+
+We now have a dataframe. However, there are no names for the columns. Those are located in the other file, `hepatitis.names`
+
+### Extracting Names
+Looking throught the `hepatitis.names` we see that all of the column names are perceded by at least four spaces, and then either a one or two digit number followed by a period. Since we can quicky see this, regex is a good tool to extract this information. Combining `egrep` with `awk` can ten achieve the outcome we desire.
+```{r, engine='bash', eval=FALSE}
+header=$(egrep '^ {4}( |[0-9])[0-9]+\.' hepatitis.names | awk '{print $2}' | sed 's/:$//')
+echo "$header" > hepatitis.headers
+```
+
+We can check to ensure this worked:
+```{r, engine='bash'}
+cat hepatitis.headers
+```
+
+Now `hepatitis.headers` can be read into r and set as the names for the df_hep
+```{r}
+headers <- read.csv("hepatitis.headers", header=FALSE)
+colnames(df_hep) <- headers$V1
+str(df_hep)
+```
+
+There, all pretty! Now we may want to write this to a new csv, that way we don't have to go throught the previous steps again. This is a simple command with `R`, `write.csv`
+```{r, eval=FALSE}
+write.csv(df_hep, "hepatitis.data.headers")
+```
+
+We can check that it wrote properly using `bash` again
+```{r, engine='bash'}
+head hepatitis.data.headers
+```
+
+Perfect! Now we can move forward knowing that we have a safe copy of the data.
+
+## Complete Rows
+We can quickly check if there are any incomplete rows using the `complete.cases` command,
+```{r}
+# number of rows
+nrow(df_hep)
+
+# complete cases
+sum(complete.cases(df_hep))
+```
+Great, there are no missing values!...or at least no default NA's. In reality, the dataset uses the "`?`" as the missing value indicator. So, we just need to swap these for NA, and we'll be on our way!
+```{r}
+df_hep[df_hep == "?"] <- NA
+sum(complete.cases(df_hep))
+```
+Almost half of the rows are imcomplete.
+
+## Subsetting on Columns
+We wish to subset a few of the columns, converting known numeric values
+```{r}
+# subset on the appropriate names
+df_sub1 <- df_hep[, c("AGE", "SEX", "BILIRUBIN", "ALK", "SGOT", "ALBUMIN")]
+
+# change the last four factors to numeric. Apply is used to speed up
+df_sub1[c(3:6)] <- apply(df_sub1[c(3:6)], 2, as.numeric)
+str(df_sub1)
+```
+
+Now we can investigate the nunber of complete rows for this new dataframe
+```{r}
+sum(complete.cases(df_sub1))
+```
+Much closer to the total number of rows.
+
+## Outliers
+The quickest way to vet data is by using a plotting tool. The human eye is extremely good at discriminiating between visual differences, so a tool like a boxplot is perfect.
+```{r}
+boxplot(df_sub1$BILIRUBIN)
+boxplot(df_sub1$ALBUMIN)
+```
+
+Bilirubin seems to have quite a number of outliers, while albumin only has two of so.
+
+## Binning
+The data for age is binned nicely into decades
+```{r}
+binned_age <- cut(df_sub1$AGE, breaks=seq(0,90,10), include.lowest = TRUE)
+str(binned_age)
+
+# add onto dataframe for use later
+df_sub1 <- cbind(df_sub1, binned_age)
+```
+
+## Aggregate
+Here the data will be aggragated as a function of bined age and sex
+```{r, warning=FALSE}
+aggregate(df_sub1, by=list(df_sub1$binned_age, df_sub1$SEX), mean, na.rm = TRUE)
+```
+`R` made this simple with the use of the builtin aggregate function. The only thing to tell it was the data, which factors to aggregate by, and what to do with `NA` values.
+
+## Ordering the data
+`R` has a nice `order` function. This function takes a vector or list as an input, and returns the index a given item should be self to as an output.
+```{r}
+df_sub1 <- df_sub1[order(df_sub1$BILIRUBIN),]
+```
+Once again, easy peasy.
+
+## Standardizing
+It is fairly easy to standardize data as well.
+```{r}
+standardize <- function(x){
+  # standardizes a single vector x
+  x_min <- min(x, na.rm = TRUE)
+  x_max <- max(x, na.rm = TRUE)
+  xrange <- x_max - x_min
+  x_stand <- (x - x_min) / xrange
+  return(x_stand)
+}
+
+plot(standardize(df_sub1$BILIRUBIN), standardize(df_sub1$ALBUMIN),
+      xlab = "Standardized Bilirubin",ylab = "Standardized Albumin")
+```
+
+
+## PCA
+Even principle compnent analysis (PCA) is a simple matter with `R`
+```{r}
+# subset on last four numeric columns and remove non complete cases
+hep_numeric <- df_sub1[c(3:6)]
+hep_numeric <- hep_numeric[complete.cases(hep_numeric),]
+
+# perform pca
+princomp(hep_numeric)
+```
+As we can see `r round(100 * 81.8700900/ (81.8700900 + 49.9311803  + 0.9133541 +  0.5196922),2)`% of the varience is accounted for by the first principle component.
+
+## Joining Data
+The `merge` function allows the joining of multiple tables
+```{r}
+df_sub2 <- df_hep[,c("AGE", "SEX", "STEROID", "ANTIVIRALS")]
+df_sub3 <- df_hep[,c("AGE", "SEX", "BILIRUBIN", "ALK", "SGOT", "ALBUMIN")]
+
+# get only complete cases of df_sub3 for joining on
+df_sub3 <- df_sub3[complete.cases(df_sub3),]
+
+# merge the two dataframes
+df_merge <- merge(df_sub2, df_sub3, sort=FALSE)
+str(df_merge)
+dim(df_merge)
+```
+
+This has joined on all matching columns and includes the ones that have matches. Many different joins are possible using `R`'s merge, but this is the simplest.
