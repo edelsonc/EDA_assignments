@@ -91,8 +91,7 @@ Much closer to the total number of rows.
 ## Outliers
 The quickest way to vet data is by using a plotting tool. The human eye is extremely good at discriminiating between visual differences, so a tool like a boxplot is perfect.
 ```{r}
-boxplot(df_sub1$BILIRUBIN)
-boxplot(df_sub1$ALBUMIN)
+boxplot(df_sub1[,c(3,6)])
 ```
 
 Bilirubin seems to have quite a number of outliers, while albumin only has two of so.
