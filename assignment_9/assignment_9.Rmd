@@ -145,9 +145,9 @@ hep_numeric <- df_sub1[c(3:6)]
 hep_numeric <- hep_numeric[complete.cases(hep_numeric),]
 
 # perform pca
-princomp(hep_numeric)
+summary(princomp(apply(hep_numeric,2,standardize)))
 ```
-As we can see `r round(100 * 81.8700900/ (81.8700900 + 49.9311803  + 0.9133541 +  0.5196922),2)`% of the varience is accounted for by the first principle component.
+As we can see 45.6% of the varience is accounted for by the first principle component.
 
 ## Joining Data
 The `merge` function allows the joining of multiple tables
